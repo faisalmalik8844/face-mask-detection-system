@@ -100,6 +100,11 @@ repeats no more often than once every six seconds. The browser camera app requir
 accessed remotely; webcam permissions are not passed through from the host
 machine to a remote browser session.
 
+The app defaults to **Capture a snapshot**, which uses the browser camera to
+capture one frame and avoids WebRTC network restrictions. Choose **Live webcam
+stream** for continuous video; some hosted/mobile networks require TURN settings
+below for live streaming to work.
+
 To run the standalone desktop webcam script instead:
 
 ```bash

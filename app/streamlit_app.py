@@ -1,13 +1,16 @@
 """Browser-based live face-mask detection with Streamlit and WebRTC."""
 
+import hashlib
 import time
 from pathlib import Path
 from threading import Lock
 
 import av
+import numpy as np
 import streamlit as st
 from streamlit_webrtc import VideoProcessorBase, WebRtcMode, webrtc_streamer
 from ultralytics import YOLO
+from PIL import Image
 
 
 ROOT_DIR = Path(__file__).resolve().parent.parent
@@ -170,6 +173,19 @@ def get_rtc_configuration() -> tuple[dict, bool]:
     return {"iceServers": ice_servers}, len(ice_servers) > 1
 
 
+def has_alert_detection(prediction) -> bool:
+    """Return true if a result contains an unmasked or incorrectly masked face."""
+    if prediction.boxes is None or len(prediction.boxes) == 0:
+        return False
+
+    class_ids = prediction.boxes.cls.int().tolist()
+    labels = [
+        str(prediction.names.get(class_id, "")).lower().replace("_", " ").strip()
+        for class_id in class_ids
+    ]
+    return any(label in {"no mask", "mask incorrect", "incorrect mask"} for label in labels)
+
+
 class MaskDetectionProcessor(VideoProcessorBase):
     """Run YOLO on each frame received from the browser webcam."""
 
@@ -187,14 +203,8 @@ class MaskDetectionProcessor(VideoProcessorBase):
                 conf=self.confidence,
                 verbose=False,
             )[0]
-        if prediction.boxes is not None and len(prediction.boxes) > 0:
-            class_ids = prediction.boxes.cls.int().tolist()
-            labels = [
-                str(prediction.names.get(class_id, "")).lower().replace("_", " ").strip()
-                for class_id in class_ids
-            ]
-            if any(label in {"no mask", "mask incorrect", "incorrect mask"} for label in labels):
-                self.alert_signal.notify()
+        if has_alert_detection(prediction):
+            self.alert_signal.notify()
         annotated = prediction.plot()
         return av.VideoFrame.from_ndarray(annotated, format="bgr24")
 
@@ -241,31 +251,56 @@ def alert_sound_control() -> None:
     )
 
 
-st.subheader("Live camera")
-st.write("Tap **START** below and allow camera access when your browser asks.")
-rtc_configuration, turn_configured = get_rtc_configuration()
-if not turn_configured:
-    st.info(
-        "If video stays black or WebRTC times out on a hosted app, configure a "
-        "TURN relay in Streamlit Cloud Secrets. STUN alone cannot connect through "
-        "some mobile and Wi-Fi networks."
-    )
-stream_context = webrtc_streamer(
-    key="face-mask-detection",
-    mode=WebRtcMode.SENDRECV,
-    video_processor_factory=lambda: MaskDetectionProcessor(model, confidence, alert_signal),
-    media_stream_constraints={"video": True, "audio": False},
-    rtc_configuration=rtc_configuration,
-    async_processing=True,
+st.subheader("Camera detection")
+camera_mode = st.selectbox(
+    "Camera mode",
+    ["Capture a snapshot", "Live webcam stream"],
+    help="Snapshot mode works without a WebRTC relay and is recommended when hosted.",
 )
-if stream_context.video_processor is not None:
-    with stream_context.video_processor.model_lock:
-        stream_context.video_processor.confidence = confidence
 
-if stream_context.state.playing:
-    st.success("Camera is running. Tap **STOP** to end the live detection.")
+if camera_mode == "Capture a snapshot":
+    st.write("Take a camera photo to run mask detection on that frame.")
+    captured_image = st.camera_input("Take a photo")
+    if captured_image is not None:
+        image_digest = hashlib.sha256(captured_image.getvalue()).hexdigest()
+        if image_digest != st.session_state.get("last_snapshot_digest"):
+            st.session_state.last_snapshot_digest = image_digest
+            image_rgb = np.asarray(Image.open(captured_image).convert("RGB"))
+            image_bgr = image_rgb[:, :, ::-1].copy()
+            prediction = model.predict(
+                source=image_bgr,
+                conf=confidence,
+                verbose=False,
+            )[0]
+            if has_alert_detection(prediction):
+                alert_signal.notify()
+            annotated_rgb = prediction.plot()[:, :, ::-1].copy()
+            st.image(annotated_rgb, caption="Detection results", width="stretch")
 else:
-    st.caption("If the camera panel closes, check the browser's camera permission for this site.")
+    st.write("Tap **START** below and allow camera access when your browser asks.")
+    rtc_configuration, turn_configured = get_rtc_configuration()
+    if not turn_configured:
+        st.info(
+            "If live video stays black or WebRTC times out, configure a TURN "
+            "relay in Streamlit Cloud Secrets. STUN alone cannot connect through "
+            "some mobile and Wi-Fi networks. Use snapshot mode without TURN."
+        )
+    stream_context = webrtc_streamer(
+        key="face-mask-detection",
+        mode=WebRtcMode.SENDRECV,
+        video_processor_factory=lambda: MaskDetectionProcessor(model, confidence, alert_signal),
+        media_stream_constraints={"video": True, "audio": False},
+        rtc_configuration=rtc_configuration,
+        async_processing=True,
+    )
+    if stream_context.video_processor is not None:
+        with stream_context.video_processor.model_lock:
+            stream_context.video_processor.confidence = confidence
+
+    if stream_context.state.playing:
+        st.success("Camera is running. Tap **STOP** to end the live detection.")
+    else:
+        st.caption("Check browser camera permission if the camera cannot start.")
 
 alert_sound_control()
 
