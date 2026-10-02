@@ -112,9 +112,10 @@ Press `q` to quit its video window.
 The app can be deployed from a GitHub repository:
 
 1. Push this project to a GitHub repository, including `app/streamlit_app.py`,
-  `requirements.txt`, and the model weights in `models/`.
+  `app/requirements.txt`, and the model weights in `models/`.
 2. In Streamlit Community Cloud, create an app from that repository and set
   the main file to `app/streamlit_app.py`.
+  In Advanced settings, choose Python 3.12 (rather than 3.14).
 3. Deploy and open the generated HTTPS URL, then grant browser camera access.
 
 The browser's camera is streamed to the server for inference. Public hosting
