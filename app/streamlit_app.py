@@ -151,25 +151,6 @@ def load_model(model_path: str) -> YOLO:
     return YOLO(model_path)
 
 
-def get_rtc_configuration() -> tuple[dict, bool]:
-    """Build WebRTC ICE servers, adding TURN credentials from Cloud secrets."""
-    ice_servers = [{"urls": ["stun:stun.l.google.com:19302"]}]
-    turn_urls = st.secrets.get("TURN_SERVER_URLS", "")
-    turn_username = st.secrets.get("TURN_USERNAME", "")
-    turn_credential = st.secrets.get("TURN_CREDENTIAL", "")
-
-    if turn_urls and turn_username and turn_credential:
-        ice_servers.append(
-            {
-                "urls": [url.strip() for url in turn_urls.split(",") if url.strip()],
-                "username": turn_username,
-                "credential": turn_credential,
-            }
-        )
-
-    return {"iceServers": ice_servers}, len(ice_servers) > 1
-
-
 def has_alert_detection(prediction) -> bool:
     """Return true if a result contains an unmasked or incorrectly masked face."""
     if prediction.boxes is None or len(prediction.boxes) == 0:
@@ -250,19 +231,19 @@ def alert_sound_control() -> None:
 
 st.subheader("Live camera")
 st.write("Tap **START** below and allow camera access when your browser asks.")
-rtc_configuration, turn_configured = get_rtc_configuration()
-if not turn_configured:
-    st.info(
-        "If live video stays black or WebRTC times out, configure a TURN "
-        "relay in Streamlit Cloud Secrets. STUN alone cannot connect through "
-        "some mobile and Wi-Fi networks."
-    )
+st.caption("If the stream does not connect, check camera permission or try another network.")
 stream_context = webrtc_streamer(
     key="face-mask-detection",
     mode=WebRtcMode.SENDRECV,
     video_processor_factory=lambda: MaskDetectionProcessor(model, confidence, alert_signal),
     media_stream_constraints={"video": True, "audio": False},
-    rtc_configuration=rtc_configuration,
+    rtc_configuration={
+        "iceServers": [
+            {"urls": ["stun:stun.l.google.com:19302"]},
+            {"urls": ["stun:stun1.l.google.com:19302"]},
+            {"urls": ["stun:stun.cloudflare.com:3478"]},
+        ]
+    },
     async_processing=True,
 )
 if stream_context.video_processor is not None:
