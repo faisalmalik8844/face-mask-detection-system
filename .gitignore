@@ -1,0 +1,18 @@
+# Dataset (too large for git - document download source in README instead)
+data/raw/*
+data/processed/*
+!data/raw/.gitkeep
+!data/processed/.gitkeep
+
+# Training run artifacts (logs, checkpoints per-epoch) - keep only final weights
+runs/
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
