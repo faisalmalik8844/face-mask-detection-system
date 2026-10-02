@@ -118,6 +118,20 @@ The app can be deployed from a GitHub repository:
   In Advanced settings, choose Python 3.12 (rather than 3.14).
 3. Deploy and open the generated HTTPS URL, then grant browser camera access.
 
+If the hosted camera shows a WebRTC connection timeout or a black video, add
+TURN relay credentials in the app's **Manage app → Settings → Secrets**. Use
+the values provided by your TURN service:
+
+```toml
+TURN_SERVER_URLS = "turn:your-turn-host:3478?transport=udp,turns:your-turn-host:5349?transport=tcp"
+TURN_USERNAME = "your-turn-username"
+TURN_CREDENTIAL = "your-turn-credential"
+```
+
+Keep real credentials private; do not commit them to GitHub. STUN is included
+as a best-effort fallback, but some cellular, school, office, and restrictive
+Wi-Fi networks require TURN to relay the video stream.
+
 The browser's camera is streamed to the server for inference. Public hosting
 means camera frames are processed by the deployed app's server; use only with
 consent. The included public STUN server helps establish WebRTC connections,
