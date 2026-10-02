@@ -222,41 +222,43 @@ def alert_sound_control() -> None:
     )
 
 
+st.subheader("Live camera")
+st.write("Tap **START** below and allow camera access when your browser asks.")
+stream_context = webrtc_streamer(
+    key="face-mask-detection",
+    mode=WebRtcMode.SENDRECV,
+    video_processor_factory=lambda: MaskDetectionProcessor(model, confidence, alert_signal),
+    media_stream_constraints={"video": True, "audio": False},
+    rtc_configuration={
+        "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+    },
+    async_processing=True,
+)
+if stream_context.video_processor is not None:
+    with stream_context.video_processor.model_lock:
+        stream_context.video_processor.confidence = confidence
+
+if stream_context.state.playing:
+    st.success("Camera is running. Tap **STOP** to end the live detection.")
+else:
+    st.caption("If the camera panel closes, check the browser's camera permission for this site.")
+
 alert_sound_control()
 
-left, right = st.columns([2, 1], gap="large")
-with left:
-    st.subheader("Live camera")
-    st.write("Start the camera below to see detections drawn on the live video.")
-    stream_context = webrtc_streamer(
-        key="face-mask-detection",
-        mode=WebRtcMode.SENDRECV,
-        video_processor_factory=lambda: MaskDetectionProcessor(model, confidence, alert_signal),
-        media_stream_constraints={"video": True, "audio": False},
-        rtc_configuration={
-            "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
-        },
-        async_processing=True,
-    )
-    if stream_context.video_processor is not None:
-        with stream_context.video_processor.model_lock:
-            stream_context.video_processor.confidence = confidence
+st.subheader("About this model")
+st.metric("Confidence threshold", f"{confidence:.0%}")
+st.markdown(
+    """
+    The model detects three classes:
+    - **Mask**
+    - **Mask Incorrect**
+    - **No Mask**
 
-with right:
-    st.subheader("About this model")
-    st.metric("Confidence threshold", f"{confidence:.0%}")
-    st.markdown(
-        """
-        The model detects three classes:
-        - **Mask**
-        - **Mask Incorrect**
-        - **No Mask**
-
-        This is an informational demo, not a reliable system for health,
-        safety, or enforcement decisions.
-        """
-    )
-    st.caption(f"Weights: `{model_path.relative_to(ROOT_DIR).as_posix()}`")
+    This is an informational demo, not a reliable system for health,
+    safety, or enforcement decisions.
+    """
+)
+st.caption(f"Weights: `{model_path.relative_to(ROOT_DIR).as_posix()}`")
 
 st.info(
     "For local use, open this app at `http://localhost:8501`. Remote hosting "
