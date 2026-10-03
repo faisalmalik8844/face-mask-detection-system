@@ -87,44 +87,14 @@ FaceMaskDetection/
 ## How to Run
 
 ```bash
-python -m pip install -r requirements.txt
-python -m streamlit run app/streamlit_app.py
+.\venv\Scripts\Activate.ps1
+cd app
+streamlit run streamlit_app.py
 ```
 
-Open the displayed local URL (usually `http://localhost:8501`) and allow
-camera access when your browser prompts you. Use the sidebar to adjust the
-detection confidence threshold. Click **Enable alert sound** before starting
-the camera to allow the browser to play a 3-second beep when `No Mask` or
-`Mask Incorrect` is detected. If a flagged detection continues, the alert
-repeats no more often than once every six seconds. The browser camera app requires HTTPS when
-accessed remotely; webcam permissions are not passed through from the host
-machine to a remote browser session.
-
-The app runs the browser webcam as a live video stream using public STUN
-servers, with no extra connection settings required.
-
-To run the standalone desktop webcam script instead:
-
-```bash
-python app/webcam_detect.py
-```
-Press `q` to quit its video window.
-
-### Deploy to Streamlit Community Cloud
-
-The app can be deployed from a GitHub repository:
-
-1. Push this project to a GitHub repository, including `app/streamlit_app.py`,
-  `app/requirements.txt`, and the model weights in `models/`.
-2. In Streamlit Community Cloud, create an app from that repository and set
-  the main file to `app/streamlit_app.py`.
-  In Advanced settings, choose Python 3.12 (rather than 3.14).
-3. Deploy and open the generated HTTPS URL, then grant browser camera access.
-
-The browser's camera is streamed to the server for inference. Public hosting
-means camera frames are processed by the deployed app's server; use only with
-consent. If a network blocks direct WebRTC connections, try another Wi-Fi or
-mobile network.
+Open the local URL printed in the terminal and allow camera access. Use the
+sidebar to adjust confidence. Enable alert sound to hear a 3-second beep when
+`No Mask` or `Mask Incorrect` is detected.
 
 ## Limitations
 
@@ -143,7 +113,6 @@ mobile network.
 - [ ] Try `yolo26s` (small variant) for more model capacity
 - [ ] Manually review a sample of training labels for annotation quality
 - [ ] Add more `Mask Incorrect` examples from a supplementary dataset
-- [ ] Deploy as a `streamlit-webrtc` app for browser-based live detection
 
 ## Author
 

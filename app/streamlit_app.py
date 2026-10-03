@@ -221,7 +221,7 @@ except Exception as error:
 
 @st.fragment(run_every="1s")
 def alert_sound_control() -> None:
-    """Poll alert events and show the sound control above the camera."""
+    """Poll alert events and display the browser sound control."""
     st.subheader("Alert sound")
     ALERT_SOUND_COMPONENT(
         key="mask-alert-sound",
@@ -229,51 +229,39 @@ def alert_sound_control() -> None:
     )
 
 
-st.subheader("Live camera")
-st.write("Tap **START** below and allow camera access when your browser asks.")
-st.caption("If the stream does not connect, check camera permission or try another network.")
-stream_context = webrtc_streamer(
-    key="face-mask-detection",
-    mode=WebRtcMode.SENDRECV,
-    video_processor_factory=lambda: MaskDetectionProcessor(model, confidence, alert_signal),
-    media_stream_constraints={"video": True, "audio": False},
-    rtc_configuration={
-        "iceServers": [
-            {"urls": ["stun:stun.l.google.com:19302"]},
-            {"urls": ["stun:stun1.l.google.com:19302"]},
-            {"urls": ["stun:stun.cloudflare.com:3478"]},
-        ]
-    },
-    async_processing=True,
-)
-if stream_context.video_processor is not None:
-    with stream_context.video_processor.model_lock:
-        stream_context.video_processor.confidence = confidence
-
-if stream_context.state.playing:
-    st.success("Camera is running. Tap **STOP** to end the live detection.")
-else:
-    st.caption("Check browser camera permission if the camera cannot start.")
-
 alert_sound_control()
 
-st.subheader("About this model")
-st.metric("Confidence threshold", f"{confidence:.0%}")
-st.markdown(
-    """
-    The model detects three classes:
-    - **Mask**
-    - **Mask Incorrect**
-    - **No Mask**
+left, right = st.columns([2, 1], gap="large")
+with left:
+    st.subheader("Live camera")
+    st.write("Start the camera below to see detections drawn on the live video.")
+    stream_context = webrtc_streamer(
+        key="face-mask-detection",
+        mode=WebRtcMode.SENDRECV,
+        video_processor_factory=lambda: MaskDetectionProcessor(model, confidence, alert_signal),
+        media_stream_constraints={"video": True, "audio": False},
+        rtc_configuration={
+            "iceServers": [{"urls": ["stun:stun.l.google.com:19302"]}]
+        },
+        async_processing=True,
+    )
+    if stream_context.video_processor is not None:
+        with stream_context.video_processor.model_lock:
+            stream_context.video_processor.confidence = confidence
 
-    This is an informational demo, not a reliable system for health,
-    safety, or enforcement decisions.
-    """
-)
-st.caption(f"Weights: `{model_path.relative_to(ROOT_DIR).as_posix()}`")
+with right:
+    st.subheader("About this model")
+    st.metric("Confidence threshold", f"{confidence:.0%}")
+    st.markdown(
+        """
+        The model detects three classes:
+        - **Mask**
+        - **Mask Incorrect**
+        - **No Mask**
 
-st.info(
-    "For local use, open this app at `http://localhost:8501`. Remote hosting "
-    "requires HTTPS for browser camera access and may require WebRTC/STUN/TURN "
-    "network configuration."
-)
+        This is an informational demo, not a reliable system for health,
+        safety, or enforcement decisions.
+        """
+    )
+    st.caption(f"Weights: `{model_path.relative_to(ROOT_DIR).as_posix()}`")
+

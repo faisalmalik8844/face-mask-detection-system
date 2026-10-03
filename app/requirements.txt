@@ -1,6 +1,0 @@
-# Cloud deployment: headless OpenCV avoids Linux GUI-library import errors.
-ultralytics>=8.4.0
-opencv-python-headless>=4.8.0
-torch>=2.0.0
-streamlit>=1.50.0
-streamlit-webrtc>=0.47.9
